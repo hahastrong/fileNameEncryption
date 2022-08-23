@@ -28,7 +28,7 @@ func ValidateFileName(fileName string) (bool, error) {
 		return false, err
 	}
 
-	sourceCode := GenerateValidCode(offset)
+	sourceCode, _ := GenerateValidCode(offset)
 	if sourceCode != validCode {
 		return false, nil
 	}
@@ -37,14 +37,14 @@ func ValidateFileName(fileName string) (bool, error) {
 }
 
 //ValidateFileName filename format: xxxx20060102_XYZ.ext
-func ValidateLastDirFileName(fileName string) (bool, error) {
+func ValidateLastDirFileName(fileName string) (string, bool, error) {
 	dotIndex := strings.LastIndex(fileName, "/")
 	if dotIndex < 0 {
-		return false, errors.New("failed to find ext start index")
+		return "", false, errors.New("failed to find ext start index")
 	}
 
 	if dotIndex < 7 {
-		return false, errors.New("file name is too short to contain yyyymmdd_XYZ")
+		return "", false, errors.New("file name is too short to contain yyyymmdd_XYZ")
 	}
 
 	validCode := fileName[dotIndex-3 : dotIndex]
@@ -53,15 +53,16 @@ func ValidateLastDirFileName(fileName string) (bool, error) {
 
 	offset, err := generateOffset(fileMonth, fileDay)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 
-	sourceCode := GenerateValidCode(offset)
-	if sourceCode != validCode {
-		return false, nil
+	sourceCode, lastSourceCode := GenerateValidCode(offset)
+	if sourceCode != validCode && lastSourceCode != validCode {
+		return "", false, nil
 	}
 
-	return true, nil
+	rawPath := fileName[:dotIndex-4] + fileName[dotIndex:]
+	return rawPath, true, nil
 }
 
 func generateOffset(month, day string) (int, error) {
@@ -84,7 +85,7 @@ func generateOffset(month, day string) (int, error) {
 	return m * d, nil
 }
 
-func GenerateValidCode(offset int) string {
+func GenerateValidCode(offset int) (string, string) {
 	_, month, day := time.Now().Date()
 	hour := time.Now().Hour()
 
@@ -92,7 +93,13 @@ func GenerateValidCode(offset int) string {
 	d := (day + offset + 1) % 27 + 'A'
 	h := (hour + offset + 2) % 27 + 'A'
 
-	return fmt.Sprintf("%c%c%c", m, d, h)
+	offset = offset * ((h + 24 - 1) % 24)
+
+	lastm := (int(month) + offset) % 27 + 'A'
+	lastd := (day + offset* + 1) % 27 + 'A'
+	lasth := (hour + offset + 2) % 27 + 'A'
+
+	return fmt.Sprintf("%c%c%c", m, d, h), fmt.Sprintf("%c%c%c", lastm, lastd, lasth)
 }
 
 func GenerateFileName(fileName string) (string, error) {
@@ -114,7 +121,7 @@ func GenerateFileName(fileName string) (string, error) {
 		return resFileName, err
 	}
 
-	sourceCode := GenerateValidCode(offset)
+	sourceCode, _ := GenerateValidCode(offset)
 	resFileName = fmt.Sprintf("%s_%s%s", fileName[:dotIndex], sourceCode, fileName[dotIndex:])
 
 	return resFileName, nil
@@ -139,8 +146,9 @@ func GenerateLastDirFileName(fileName string) (string, error) {
 		return resFileName, err
 	}
 
-	sourceCode := GenerateValidCode(offset)
+	sourceCode, _ := GenerateValidCode(offset)
 	resFileName = fmt.Sprintf("%s_%s%s", fileName[:dotIndex], sourceCode, fileName[dotIndex:])
 
 	return resFileName, nil
 }
+
