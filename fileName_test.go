@@ -1,4 +1,4 @@
-package fileNameEncryption
+package fileNameEncryption_test
 
 import "testing"
 
